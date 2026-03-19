@@ -1522,9 +1522,14 @@
                     .then(data => {
                         if (data.success) {
                             const action = currentEmployee.telegram_linked ? 'Переподключить Telegram' : 'Привязать Telegram';
+                            const avatarHtml = currentEmployee.avatar_url
+                                ? `<div style="text-align:center;margin-bottom:12px;"><img src="${currentEmployee.avatar_url}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid #667eea;"></div>`
+                                : `<div style="text-align:center;margin-bottom:12px;"><div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:inline-flex;align-items:center;justify-content:center;color:white;font-size:28px;font-weight:700;">${(currentEmployee.name||'?')[0].toUpperCase()}</div></div>`;
                             const msg = document.createElement('div');
                             msg.innerHTML = `
-                                <p style="margin-bottom:12px;">Нажмите кнопку ниже, чтобы открыть бот и ${currentEmployee.telegram_linked ? 'переподключить' : 'привязать'} аккаунт.<br>
+                                ${avatarHtml}
+                                <p style="text-align:center;font-weight:600;margin-bottom:4px;">${escapeHtml(currentEmployee.name||'')}</p>
+                                <p style="margin-bottom:12px;color:#666;font-size:13px;">Нажмите кнопку ниже, чтобы открыть бот и ${currentEmployee.telegram_linked ? 'переподключить' : 'привязать'} аккаунт.<br>
                                 <small style="color:#999;">Ссылка действует 5 минут</small></p>
                                 <a href="${data.link}" target="_blank" style="
                                     display:block;text-align:center;padding:12px;border-radius:10px;
@@ -2762,34 +2767,52 @@
                 });
         }
 
+        function getContactAvatar(name) {
+            if (currentEmployee && name === currentEmployee.name) return currentEmployee.avatar_url || null;
+            if (allContacts) {
+                const c = allContacts.find(x => x.name === name);
+                if (c && c.avatar_url) return c.avatar_url;
+            }
+            return null;
+        }
+
+        function avatarCircle(name, size) {
+            const url = getContactAvatar(name);
+            const letter = name ? name[0].toUpperCase() : '?';
+            if (url) return `<img src="${url}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`;
+            return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,var(--primary-color),var(--primary-dark));display:flex;align-items:center;justify-content:center;color:white;font-size:${Math.round(size*0.45)}px;font-weight:700;flex-shrink:0;">${letter}</div>`;
+        }
+
         function appendMsg(msg, animate) {
             const myName = currentEmployee ? currentEmployee.name : '';
             const isMe = msg.sender_name === myName;
             const box = document.getElementById('chat-messages-box');
-            // Remove "empty" placeholder if present
             const placeholder = box.querySelector('[data-placeholder]');
             if (placeholder) placeholder.remove();
             const time = new Date(msg.created_at).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
-            const wrap = document.createElement('div');
-            wrap.style.cssText = `display:flex;flex-direction:column;align-items:${isMe?'flex-end':'flex-start'};align-self:${isMe?'flex-end':'flex-start'};max-width:80%;`;
-            wrap.innerHTML = `
-                ${!isMe && currentChat === GENERAL_CHAT ? `<div style="font-size:11px;color:#999;margin-bottom:2px;padding-left:4px;">${escapeHtml(msg.sender_name)}</div>` : ''}
-                <div style="position:relative;">
-                    <div style="
-                        background:${isMe?'linear-gradient(135deg,#667eea,#764ba2)':'#f0f0f0'};
-                        color:${isMe?'white':'#333'};
-                        padding:8px 36px 8px 12px;
-                        border-radius:${isMe?'16px 16px 4px 16px':'16px 16px 16px 4px'};
-                        font-size:14px;word-break:break-word;line-height:1.4;
-                    ">${escapeHtml(msg.text)}</div>
-                    <button onclick="openForward('${escapeHtml(msg.text.replace(/'/g,"\\'"))}')" title="Переслать" style="
-                        position:absolute;${isMe?'left:6px':'right:6px'};top:50%;transform:translateY(-50%);
-                        background:none;border:none;cursor:pointer;font-size:14px;opacity:0.5;padding:2px;
-                    ">↪</button>
+            const outer = document.createElement('div');
+            outer.style.cssText = `display:flex;align-items:flex-end;gap:6px;${isMe?'flex-direction:row-reverse;':''}margin-bottom:4px;`;
+            outer.innerHTML = `
+                ${avatarCircle(msg.sender_name, 28)}
+                <div style="display:flex;flex-direction:column;align-items:${isMe?'flex-end':'flex-start'};max-width:75%;">
+                    ${!isMe && currentChat === GENERAL_CHAT ? `<div style="font-size:11px;color:#999;margin-bottom:2px;padding-left:4px;">${escapeHtml(msg.sender_name)}</div>` : ''}
+                    <div style="position:relative;">
+                        <div style="
+                            background:${isMe?'linear-gradient(135deg,#667eea,#764ba2)':'#f0f0f0'};
+                            color:${isMe?'white':'#333'};
+                            padding:8px 36px 8px 12px;
+                            border-radius:${isMe?'16px 16px 4px 16px':'16px 16px 16px 4px'};
+                            font-size:14px;word-break:break-word;line-height:1.4;
+                        ">${escapeHtml(msg.text)}</div>
+                        <button onclick="openForward('${escapeHtml(msg.text.replace(/'/g,"\\'"))}')" title="Переслать" style="
+                            position:absolute;${isMe?'left:6px':'right:6px'};top:50%;transform:translateY(-50%);
+                            background:none;border:none;cursor:pointer;font-size:14px;opacity:0.5;padding:2px;
+                        ">↪</button>
+                    </div>
+                    <div style="font-size:10px;color:#bbb;margin-top:2px;padding:0 4px;">${time}</div>
                 </div>
-                <div style="font-size:10px;color:#bbb;margin-top:2px;padding:0 4px;">${time}</div>
             `;
-            box.appendChild(wrap);
+            box.appendChild(outer);
         }
 
         function sendChatMessage() {
